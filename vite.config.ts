@@ -7,7 +7,8 @@ export default defineConfig({
   build: { outDir: 'dist/client' },
   server: {
     strictPort: true,
-    host: '127.0.0.1',
+    // MWP 2026-10-11: tailnet-reachable from Brian's devices (was 127.0.0.1)
+    host: '0.0.0.0',
     proxy: { '/api': 'http://127.0.0.1:4310' },
   },
 });
