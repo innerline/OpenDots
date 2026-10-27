@@ -41,7 +41,10 @@ it('accepts the CLI project key and still accepts the template name', () => {
   expect(intelligenceApiKeyFromEnv({})).toBeUndefined();
 });
 
-it('reports either accepted name from the same label used by setup status and the copilotkit error', async () => {
+// MWP 2026-10-27 (owner law: self-host first): a missing Intelligence key is
+// the valid local mode — setup is complete, the CopilotKit runtime builds in
+// its local thread mode, and requests are served instead of 503'd.
+it('runs local mode without a key: setup complete, runtime built and serving', async () => {
   const key = intelligenceApiKeyFromEnv({
     CPK_INTELLIGENCE_API_KEY: 'cpk-from-cli',
   });
@@ -51,22 +54,22 @@ it('reports either accepted name from the same label used by setup status and th
   });
   expect(INTELLIGENCE_KEY_MISSING_LABEL).toContain('CPK_INTELLIGENCE_API_KEY');
   expect(INTELLIGENCE_KEY_MISSING_LABEL).toContain('INTELLIGENCE_API_KEY');
-  expect(setupStatus(configured).missing).toContain(
-    INTELLIGENCE_KEY_MISSING_LABEL,
-  );
+  expect(setupStatus(configured)).toMatchObject({
+    intelligence: false,
+    missing: [],
+  });
 
   const store = new Store(':memory:');
   const workspace = new WorkspaceStore(':memory:', 'owner');
   try {
     const platform = new Platform(store, workspace, configured);
+    expect(platform.intelligence).toBeUndefined();
+    expect(platform.handler).toBeDefined();
     const response = await platform.handle(
       new Request('http://127.0.0.1/api/copilotkit/info'),
     );
-    expect(response.status).toBe(503);
-    expect(await response.json()).toEqual({
-      error: `Setup required: ${INTELLIGENCE_KEY_MISSING_LABEL}.`,
-    });
-    expect(platform.setup().missing).toContain(INTELLIGENCE_KEY_MISSING_LABEL);
+    expect(response.status).not.toBe(503);
+    expect(platform.setup().missing).toEqual([]);
   } finally {
     store.close();
     workspace.close();

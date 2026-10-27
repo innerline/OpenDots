@@ -91,8 +91,10 @@ export function setupStatus(
   slack = 'not_configured',
   activationFailed = false,
 ): SetupStatus {
+  // MWP 2026-10-27 (owner law: self-host first): a missing intelligence key
+  // is the valid local mode, not unfinished setup. CopilotKit cloud is
+  // opt-in — the key is used only when present.
   const missing = [
-    !config.intelligenceKey && INTELLIGENCE_KEY_MISSING_LABEL,
     !config.apiKey && 'OPENAI_API_KEY',
     !config.model && 'OPENAI_MODEL',
   ].filter((item): item is string => !!item);

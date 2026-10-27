@@ -1,11 +1,12 @@
 import { ComputerService } from './computer-service.js';
 import { ConnectionService } from './connections.js';
-import { PageService } from './page-service.js';
+import { PageService, type PageIntelligence } from './page-service.js';
 import { randomUUID } from 'node:crypto';
 import {
   CopilotKitIntelligence,
   CopilotRuntime,
   createCopilotHonoHandler,
+  supportsLocalThreadEndpoints,
   type CopilotHonoApp,
 } from '@copilotkit/runtime/v2';
 import { createSlackChannel } from './slack-channel.js';
@@ -25,6 +26,7 @@ import { learningSelector } from './learning.js';
 import { SetupTelemetry } from './setup-telemetry.js';
 export class Platform {
   private channelStartupFailed = false;
+  private runtime?: CopilotRuntime;
   readonly setupTelemetry: SetupTelemetry;
   readonly pages: PageService;
   readonly computers: ComputerService;
@@ -45,18 +47,23 @@ export class Platform {
     this.connections = new ConnectionService(workspace.connections);
     this.pages = new PageService(workspace, () => {
       this.requireReady();
-      return this.intelligence!;
+      return this.intelligence ?? this.localPageIntelligence();
     });
-    if (!config.intelligenceKey) return;
-    this.intelligence = new CopilotKitIntelligence({
-      apiKey: config.intelligenceKey,
-      apiUrl: config.intelligenceApiUrl,
-      wsUrl: config.intelligenceWsUrl,
-      getLearningContainerId: learningSelector(
-        workspace,
-        config.slackDotId ?? workspace.dots()[0]?.id,
-      ),
-    });
+    // MWP 2026-10-27 (owner law: self-host first, no third-party platform
+    // cloud): CopilotKit Intelligence is opt-in. Without a key the runtime
+    // runs its local thread mode — thread data stays in the runtime's local
+    // store and nothing is sent to cloud.copilotkit.ai.
+    if (config.intelligenceKey) {
+      this.intelligence = new CopilotKitIntelligence({
+        apiKey: config.intelligenceKey,
+        apiUrl: config.intelligenceApiUrl,
+        wsUrl: config.intelligenceWsUrl,
+        getLearningContainerId: learningSelector(
+          workspace,
+          config.slackDotId ?? workspace.dots()[0]?.id,
+        ),
+      });
+    }
     const channels = [];
     if (config.slackChannel && config.slackTeam && config.slackUsers.length) {
       const dotId = config.slackDotId ?? workspace.dots()[0].id;
@@ -79,8 +86,7 @@ export class Platform {
       });
       channels.push(slack);
     }
-    const runtime = new CopilotRuntime({
-      intelligence: this.intelligence,
+    const runtimeOptions = {
       telemetryId: this.setupTelemetry.identity,
       telemetryProperties: this.setupTelemetry.metadata,
       identifyUser: async () => ({
@@ -114,7 +120,23 @@ export class Platform {
         ),
       channels,
       generateThreadNames: true,
-    });
+    };
+    // MWP 2026-10-27: two typed constructions — with the cloud client
+    // (opt-in) or in the runtime's SSE mode (no intelligence argument,
+    // nothing leaves the machine). SSE mode disallows channels and
+    // cloud-generated thread names; the Slack channel lane is therefore
+    // cloud-only and disabled here.
+    const runtime = this.intelligence
+      ? new CopilotRuntime({
+          intelligence: this.intelligence,
+          ...runtimeOptions,
+        })
+      : new CopilotRuntime({
+          ...runtimeOptions,
+          channels: undefined,
+          generateThreadNames: undefined,
+        });
+    this.runtime = runtime;
     this.handler = createCopilotHonoHandler({
       runtime,
       basePath: '/api/copilotkit',
@@ -132,9 +154,45 @@ export class Platform {
   requireReady() {
     const missing = this.setup().missing;
     if (missing.length)
-      throw new Error(
-        `Setup required: ${missing.join(', ')}. Conversations require CopilotKit Intelligence.`,
-      );
+      throw new Error(`Setup required: ${missing.join(', ')}.`);
+  }
+
+  /**
+   * Local thread reads for the no-cloud mode. The runtime's local runner
+   * records thread messages as chats run; history survives until process
+   * restart (stated limitation of the local mode).
+   */
+  private localThreadMessages(threadId: string): {
+    messages: { role: string; content: unknown }[];
+  } {
+    const runner = this.runtime?.runner;
+    if (!runner || !supportsLocalThreadEndpoints(runner))
+      return { messages: [] };
+    return {
+      messages: runner.getThreadMessages(threadId).map((message) => ({
+        role: (message as { role?: string }).role ?? '',
+        content: (message as { content?: unknown }).content ?? '',
+      })),
+    };
+  }
+
+  private localPageIntelligence(): PageIntelligence {
+    return {
+      getOrCreateThread: async (input) => {
+        const existing = this.workspace
+          .conversations()
+          .find((t) => t.id === input.threadId);
+        if (!existing)
+          this.workspace.bindThread(
+            input.threadId,
+            input.agentId,
+            input.name,
+          );
+        return { id: input.threadId };
+      },
+      getThreadMessages: async (input) =>
+        this.localThreadMessages(input.threadId),
+    };
   }
   async start() {
     this.setupTelemetry.start();
@@ -161,27 +219,31 @@ export class Platform {
     this.requireReady();
     if (!this.workspace.dot(dotId)) throw new Error('Dot not found.');
     const id = randomUUID();
-    try {
-      await this.intelligence!.createThread({
-        threadId: id,
-        userId: this.workspace.ownerId,
-        agentId: dotId,
-        name: title,
-      });
-    } catch {
-      throw new Error(
-        'Intelligence could not create this conversation. Check the runtime key and connection.',
-      );
+    if (this.intelligence) {
+      try {
+        await this.intelligence.createThread({
+          threadId: id,
+          userId: this.workspace.ownerId,
+          agentId: dotId,
+          name: title,
+        });
+      } catch {
+        throw new Error(
+          'Intelligence could not create this conversation. Check the runtime key and connection.',
+        );
+      }
     }
     return this.workspace.bindThread(id, dotId, title);
   }
   async history(threadId: string): Promise<string> {
     this.requireReady();
     this.workspace.requireThread(threadId);
-    const history = await this.intelligence!.getThreadMessages({
-      threadId,
-      userId: this.workspace.ownerId,
-    });
+    const history = this.intelligence
+      ? await this.intelligence.getThreadMessages({
+          threadId,
+          userId: this.workspace.ownerId,
+        })
+      : this.localThreadMessages(threadId);
     return history.messages
       .filter((message) => ['user', 'assistant'].includes(message.role))
       .slice(-12)
