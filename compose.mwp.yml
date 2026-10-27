@@ -1,0 +1,36 @@
+# MWP deployment override — OpenDots in OrbStack (owner GO 2026-10-27).
+# Standalone: docker compose -f compose.mwp.yml up -d
+# Keeps the owner's door: http://100.81.213.106:5173 (container serves UI+API on 4310).
+# Honey's brain stays on the host engine adapter, reached via host.docker.internal.
+services:
+  app:
+    build:
+      context: .
+      target: app
+    container_name: opendots-app
+    ports:
+      - "100.81.213.106:5173:4310"
+    env_file:
+      - .env
+    environment:
+      # inside the container these addresses change meaning — repoint at the host
+      REMOTE_DOT_AGENTS: "Honey=http://host.docker.internal:8126/"
+      # self-hosted Intelligence lives on the host k3d (loopback :51410/:51412);
+      # .env's localhost values would point at the container itself (Pi, live-tested)
+      INTELLIGENCE_API_URL: "http://host.docker.internal:51410"
+      INTELLIGENCE_GATEWAY_WS_URL: "ws://host.docker.internal:51412"
+      BROWSER_URL: ""
+      DATABASE_PATH: /data/opendots.sqlite
+      HOST: 0.0.0.0
+      PORT: "4310"
+    volumes:
+      - opendots-data:/data
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    init: true
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+volumes:
+  opendots-data:
+    name: opendots-data
