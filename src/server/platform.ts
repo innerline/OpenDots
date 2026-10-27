@@ -13,6 +13,7 @@ export { slackIdentity } from './slack-channel.js';
 import { Store } from './store.js';
 import { WorkspaceStore } from './workspace.js';
 import { DotAgent } from './dot-agent.js';
+import { HttpAgent } from '@ag-ui/client';
 import { runThreadTurn } from './headless.js';
 import {
   INTELLIGENCE_KEY_MISSING_LABEL,
@@ -90,17 +91,26 @@ export class Platform {
         Object.fromEntries(
           workspace
             .dots()
-            .map((dot) => [
-              dot.id,
-              new DotAgent(
-                store,
-                workspace,
-                config,
+            .map((dot) => {
+              // MWP 2026-10-27: Dots mapped in REMOTE_DOT_AGENTS (matched by
+              // lowercased Dot name) run on an external AG-UI agent — the
+              // real engine behind the face (Honey -> :8126), same
+              // remote-ag-ui pattern OpenBot uses for its Bots.
+              const remoteUrl = config.remoteDotAgents?.[dot.name.toLowerCase()];
+              return [
                 dot.id,
-                false,
-                this.setupTelemetry,
-              ),
-            ]),
+                remoteUrl
+                  ? new HttpAgent({ url: remoteUrl, agentId: dot.id })
+                  : new DotAgent(
+                      store,
+                      workspace,
+                      config,
+                      dot.id,
+                      false,
+                      this.setupTelemetry,
+                    ),
+              ];
+            }),
         ),
       channels,
       generateThreadNames: true,

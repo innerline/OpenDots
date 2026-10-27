@@ -12,6 +12,7 @@ import { Platform } from './platform.js';
 import {
   intelligenceApiKeyFromEnv,
   intelligenceWsUrlFromEnv,
+  remoteDotAgentsFromEnv,
   type PlatformConfig,
 } from './platform-config.js';
 const host = process.env.HOST ?? '127.0.0.1';
@@ -37,6 +38,7 @@ const config: PlatformConfig = {
   apiKey: process.env.OPENAI_API_KEY,
   model: process.env.OPENAI_MODEL,
   baseUrl: process.env.OPENAI_BASE_URL ?? 'https://api.openai.com/v1',
+  remoteDotAgents: remoteDotAgentsFromEnv(process.env),
   webSearchProvider: webSearchProvider(process.env.WEB_SEARCH_PROVIDER),
   parallelApiKey: process.env.PARALLEL_API_KEY,
   browserUrl: process.env.BROWSER_URL,

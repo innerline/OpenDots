@@ -34,6 +34,34 @@ function firstNonEmptyEnvValue(
   return undefined;
 }
 
+// MWP 2026-10-27: remote-agent Dots. Maps a Dot NAME (lowercased) to an
+// external AG-UI endpoint, so a Dot can be the FACE of a real agent engine
+// that lives elsewhere (e.g. Honey -> the OpenCode honey adapter on :8126,
+// the same remote-ag-ui pattern OpenBot uses). Format, comma-separated:
+//   REMOTE_DOT_AGENTS="Honey=http://127.0.0.1:8126/,Scout=http://127.0.0.1:8130/"
+// A mapped Dot skips this template's own TanStack agent entirely; its name,
+// avatar, and Spaces remain the presentation layer only.
+export function remoteDotAgentsFromEnv(
+  env: Record<string, string | undefined>,
+): Record<string, string> | undefined {
+  const raw = env.REMOTE_DOT_AGENTS?.trim();
+  if (!raw) return undefined;
+  const map: Record<string, string> = {};
+  for (const pair of raw.split(',')) {
+    const entry = pair.trim();
+    if (!entry) continue;
+    const eq = entry.indexOf('=');
+    const name = eq > 0 ? entry.slice(0, eq).trim().toLowerCase() : '';
+    const url = eq > 0 ? entry.slice(eq + 1).trim() : '';
+    if (!name || !/^https?:\/\/\S+$/.test(url)) {
+      console.warn(`REMOTE_DOT_AGENTS: skipping malformed entry "${entry}"`);
+      continue;
+    }
+    map[name] = url;
+  }
+  return Object.keys(map).length ? map : undefined;
+}
+
 export interface PlatformConfig extends WebConfig {
   intelligenceKey?: string;
   intelligenceApiUrl?: string;
@@ -41,6 +69,7 @@ export interface PlatformConfig extends WebConfig {
   model?: string;
   apiKey?: string;
   baseUrl: string;
+  remoteDotAgents?: Record<string, string>;
   computerSupervisorUrl?: string;
   computerSupervisorToken?: string;
   computerToken?: string;
