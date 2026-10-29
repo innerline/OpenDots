@@ -13,8 +13,13 @@ services:
     env_file:
       - .env
     environment:
-      # inside the container these addresses change meaning — repoint at the host
-      REMOTE_DOT_AGENTS: "Honey=http://host.docker.internal:8126/"
+      # MWP 2026-10-29: OpenBot's plain AG-UI door (SSE event stream on the response). The
+      # Intelligence route (/api/copilotkit/agent/honey/run) answers with a join-token envelope
+      # and would try to create this workspace's thread id as its own agent on the shared
+      # Intelligence platform — globally unique thread ids make that a 409/404 and every turn
+      # dies "Failed to initialize thread". The AG-UI door runs the same Bot (same tools, role,
+      # signed-run treatment) and streams back what an HttpAgent consumes.
+      REMOTE_DOT_AGENTS: "Honey=http://host.docker.internal:3002/api/agui/agent/honey/run"
       # self-hosted Intelligence lives on the host k3d (loopback :51410/:51412);
       # .env's localhost values would point at the container itself (Pi, live-tested)
       INTELLIGENCE_API_URL: "http://host.docker.internal:51410"
