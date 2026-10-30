@@ -13,13 +13,14 @@ services:
       target: app
     container_name: opendots-app
     ports:
-      # MWP 2026-10-30 ~20:35Z someone added BOTH doors (loopback + tailnet IP), calling the
-      # tailnet IP "Brian's home-screen icon (register CANONICAL)" and removing serve :5173.
-      # REVERTED ~20:47Z by OpenCode: raw-number http doors are the exact class the owner
-      # reported dead all night (his devices never open them), and the tailnet-IP bind shadows
-      # the serve :5173 TLS listener — the documented registry disease #2. Canonical doors are
-      # named HTTPS per the gate ruling (MWP 8705f271, Hermes 20:33Z). If an owner icon door
-      # is wanted, it needs Hermes + owner word FIRST, then it gets registered — not applied.
+      # MWP 2026-10-30T21:3xZ — LOOPBACK-ONLY (OpenCode, Studio seat, owner-DM fix). The
+      # tailnet-IP publish on the same port SHADOWS the tailscale serve TLS listener —
+      # with serve :5173 ON, Brian's taps on the canonical https door hit the plain-HTTP
+      # container and die (TLS alert protocol version). Owner law (SERVICES.md owner
+      # surfaces): the ONLY OpenDots door is https://brians-mac-studio.tailab784e.ts.net:5173
+      # — serve :5173 ON + loopback publish is the only topology where that door exists.
+      # The ~20:55Z dual-publish and its raw-IP "icon lane" are retired by this change;
+      # raw-number http doors are dead by the owner link law anyway (never shipped).
       - "127.0.0.1:5173:4310"
     env_file:
       - .env
@@ -33,8 +34,8 @@ services:
       REMOTE_DOT_AGENTS: "Honey=http://host.docker.internal:3002/api/agui/agent/honey/run"
       # self-hosted Intelligence lives on the host k3d (loopback :51410/:51412);
       # .env's localhost values would point at the container itself (Pi, live-tested)
-      INTELLIGENCE_API_URL: "http://host.docker.internal:51410"
-      INTELLIGENCE_GATEWAY_WS_URL: "ws://host.docker.internal:51412"
+      # [OSSFLIP-20261030] INTELLIGENCE_API_URL: "http://host.docker.internal:51410"
+      # [OSSFLIP-20261030] INTELLIGENCE_GATEWAY_WS_URL: "ws://host.docker.internal:51412"
       BROWSER_URL: ""
       DATABASE_PATH: /data/opendots.sqlite
       # MWP 2026-10-30: Brian's inbox — the kanban ask register, bind-mounted (not baked
