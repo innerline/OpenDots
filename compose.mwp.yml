@@ -31,7 +31,7 @@ services:
       # Intelligence platform — globally unique thread ids make that a 409/404 and every turn
       # dies "Failed to initialize thread". The AG-UI door runs the same Bot (same tools, role,
       # signed-run treatment) and streams back what an HttpAgent consumes.
-      REMOTE_DOT_AGENTS: "Honey=http://host.docker.internal:3002/api/agui/agent/honey/run"
+      REMOTE_DOT_AGENTS: "Honey=http://100.81.213.106:3002/api/agui/agent/honey/run"
       # self-hosted Intelligence lives on the host k3d (loopback :51410/:51412);
       # .env's localhost values would point at the container itself (Pi, live-tested)
       # [PI-GWFIX-20261030] cpk runtime 1.75.0 hands the SERVER's own gateway URL to browsers
@@ -39,8 +39,14 @@ services:
       # phone chat died silently at the realtime WS (RUN envelope clientUrl unreachable).
       # Fix: serve :9444 -> 127.0.0.1:51412 (tailscale) and use that URL for BOTH server and
       # browser. Container->door reachability live-tested 2026-10-30T21:5xZ (Pi).
-      INTELLIGENCE_API_URL: "http://host.docker.internal:51410"
-      INTELLIGENCE_GATEWAY_WS_URL: "wss://brians-mac-studio.tailab784e.ts.net:9444"
+      # [SSEFLIP-20261030 opencode] Intelligence trio retired from the Dots env — key
+      # commented in .env, so the server takes the SSE branch (platform.ts) and the
+      # runtime info omits `intelligence` → browsers never open the gateway WS at all.
+      # The gateway line was the mid-run drop behind "Honey is thinking" hangs and
+      # doubled messages (client/runner socket churn 22:37-22:42Z, gateway log).
+      # These two lines stay as record; env without them is the live config.
+      # INTELLIGENCE_API_URL: "http://host.docker.internal:51410"
+      # INTELLIGENCE_GATEWAY_WS_URL: "wss://brians-mac-studio.tailab784e.ts.net:9444"
       BROWSER_URL: ""
       DATABASE_PATH: /data/opendots.sqlite
       # MWP 2026-10-30: Brian's inbox — the kanban ask register, bind-mounted (not baked

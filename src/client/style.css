@@ -4329,3 +4329,13 @@ h3 {
   overflow-wrap: anywhere;
   font-size: 11px;
 }
+
+/* [2026-10-30 owner order: "annoying bubble ... Powered by CopilotKit, get a license — fix that"]
+   Vendor license-nag suppression. This deployment's runtime has no license token, so it reports
+   licenseStatus "none" and @copilotkit/react-core (1.75) renders a fixed bottom-center banner
+   with an inline style (z-index: 99999) — no class, no off-switch prop. Hiding the banner changes
+   NO runtime state; the license decision (re-issue vs keyless) stays the owner's. DELETE this
+   rule once a valid license is installed or the owner rules keyless — either removes it naturally. */
+[style*="99999"] {
+  display: none !important;
+}

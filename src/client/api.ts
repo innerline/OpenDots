@@ -1,8 +1,13 @@
-let token = sessionStorage.getItem('opendots-token') ?? '';
+// MWP 2026-10-30T22:0xZ (OpenCode, owner-DM "chat never worked"): token moved
+// sessionStorage -> localStorage. sessionStorage dies with every tab close, so
+// the owner re-typed the 35-char owner token on EVERY visit and read the wall
+// as "chat never worked." Private tailnet + owner-only surface: persisting the
+// unlock token is correct here. Set via setToken(); surviving across visits.
+let token = localStorage.getItem('opendots-token') ?? '';
 export function setToken(value: string) {
   token = value;
-  if (value) sessionStorage.setItem('opendots-token', value);
-  else sessionStorage.removeItem('opendots-token');
+  if (value) localStorage.setItem('opendots-token', value);
+  else localStorage.removeItem('opendots-token');
 }
 export class ApiError extends Error {
   constructor(
