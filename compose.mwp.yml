@@ -13,11 +13,14 @@ services:
       target: app
     container_name: opendots-app
     ports:
-      # MWP 2026-10-30 ~20:35Z: BOTH doors — loopback feeds the serve :9443 HTTPS door;
-      # tailnet IP is Brian's home-screen icon (http://100.81.213.106:5173, register CANONICAL).
-      # The serve :5173 named door was removed for this (duplicate of 9443).
+      # MWP 2026-10-30 ~20:35Z someone added BOTH doors (loopback + tailnet IP), calling the
+      # tailnet IP "Brian's home-screen icon (register CANONICAL)" and removing serve :5173.
+      # REVERTED ~20:47Z by OpenCode: raw-number http doors are the exact class the owner
+      # reported dead all night (his devices never open them), and the tailnet-IP bind shadows
+      # the serve :5173 TLS listener — the documented registry disease #2. Canonical doors are
+      # named HTTPS per the gate ruling (MWP 8705f271, Hermes 20:33Z). If an owner icon door
+      # is wanted, it needs Hermes + owner word FIRST, then it gets registered — not applied.
       - "127.0.0.1:5173:4310"
-      - "100.81.213.106:5173:4310"
     env_file:
       - .env
     environment:
