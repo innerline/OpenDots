@@ -34,8 +34,13 @@ services:
       REMOTE_DOT_AGENTS: "Honey=http://host.docker.internal:3002/api/agui/agent/honey/run"
       # self-hosted Intelligence lives on the host k3d (loopback :51410/:51412);
       # .env's localhost values would point at the container itself (Pi, live-tested)
-      # [OSSFLIP-20261030] INTELLIGENCE_API_URL: "http://host.docker.internal:51410"
-      # [OSSFLIP-20261030] INTELLIGENCE_GATEWAY_WS_URL: "ws://host.docker.internal:51412"
+      # [PI-GWFIX-20261030] cpk runtime 1.75.0 hands the SERVER's own gateway URL to browsers
+      # (deriveClientWsUrl — no public-URL override), so host.docker.internal here meant every
+      # phone chat died silently at the realtime WS (RUN envelope clientUrl unreachable).
+      # Fix: serve :9444 -> 127.0.0.1:51412 (tailscale) and use that URL for BOTH server and
+      # browser. Container->door reachability live-tested 2026-10-30T21:5xZ (Pi).
+      INTELLIGENCE_API_URL: "http://host.docker.internal:51410"
+      INTELLIGENCE_GATEWAY_WS_URL: "wss://brians-mac-studio.tailab784e.ts.net:9444"
       BROWSER_URL: ""
       DATABASE_PATH: /data/opendots.sqlite
       # MWP 2026-10-30: Brian's inbox — the kanban ask register, bind-mounted (not baked
