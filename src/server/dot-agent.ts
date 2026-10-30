@@ -375,7 +375,7 @@ export class DotAgent extends AbstractAgent {
                 : []),
               ...(approvals ? [connectionActionTool] : []),
             ],
-            forwardedProps: {},
+            forwardedProps: input.forwardedProps ?? {},
           })
           .subscribe({
             next: (event) => {

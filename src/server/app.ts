@@ -12,6 +12,7 @@ import type { Platform } from './platform.js';
 import type { OwnerInbox } from '../shared/types.js';
 import { VoiceService } from './voice.js';
 import { workspaceRoutes } from './workspace-routes.js';
+import { deviceContext } from './device-context.js';
 const interval = z.number().int().min(60).max(31_536_000).nullable();
 const ownerInboxItem = z.object({
   id: z.string(),
@@ -54,6 +55,12 @@ export function createApp({
     }),
   );
   app.use('/api/*', async (c, next) => {
+    // MWP 2026-10-30 device input matrix: capture the caller's real
+    // User-Agent (and x-forwarded-for when the proxy chain supplies it)
+    // for the remote-agent stamp below.
+    const deviceUserAgent = c.req.header('user-agent') ?? '';
+    const devicePeer =
+      c.req.header('x-forwarded-for')?.split(',')[0].trim() || '';
     c.header('Cache-Control', 'no-store');
     c.header('X-Content-Type-Options', 'nosniff');
     const requestUrl = new URL(c.req.url);
@@ -106,7 +113,10 @@ export function createApp({
       !c.req.header('content-type')?.includes('application/json')
     )
       return c.json({ error: 'Use application/json.' }, 415);
-    await next();
+    await deviceContext.run(
+        { deviceUserAgent, devicePeer: devicePeer || undefined },
+        next,
+      );
   });
   if (platform) app.route('/api', computerRoutes(platform.computers));
   if (platform)

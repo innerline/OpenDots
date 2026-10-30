@@ -15,6 +15,8 @@ import { Store } from './store.js';
 import { WorkspaceStore } from './workspace.js';
 import { DotAgent } from './dot-agent.js';
 import { HttpAgent } from '@ag-ui/client';
+import type { RunAgentInput } from '@ag-ui/core';
+import { deviceContext } from './device-context.js';
 import { runThreadTurn } from './headless.js';
 import {
   INTELLIGENCE_KEY_MISSING_LABEL,
@@ -24,6 +26,26 @@ import {
 import { validateRuntimeScope } from './runtime-scope.js';
 import { learningSelector } from './learning.js';
 import { SetupTelemetry } from './setup-telemetry.js';
+// MWP 2026-10-30 device input matrix: stamp the caller's device context
+// (captured at the /api edge by app.ts) onto every forwarded remote-dot
+// run, so the engine's _resolve_device can classify phone / ipad /
+// laptop / studio from the real User-Agent - the same contract the
+// cockpit edge implements (owner-device.ts).
+class DeviceForwardingHttpAgent extends HttpAgent {
+  run(input: RunAgentInput) {
+    const device = deviceContext.getStore();
+    if (device?.deviceUserAgent) {
+      const forwardedProps = {
+        ...(input.forwardedProps ?? {}),
+        deviceUserAgent: device.deviceUserAgent,
+        ...(device.devicePeer ? { devicePeer: device.devicePeer } : {}),
+      };
+      return super.run({ ...input, forwardedProps });
+    }
+    return super.run(input);
+  }
+}
+
 export class Platform {
   private channelStartupFailed = false;
   private runtime?: CopilotRuntime;
@@ -106,7 +128,7 @@ export class Platform {
               return [
                 dot.id,
                 remoteUrl
-                  ? new HttpAgent({ url: remoteUrl, agentId: dot.id })
+                  ? new DeviceForwardingHttpAgent({ url: remoteUrl, agentId: dot.id })
                   : new DotAgent(
                       store,
                       workspace,
