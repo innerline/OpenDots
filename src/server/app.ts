@@ -3,14 +3,29 @@ import { connectionRoutes } from './connection-routes.js';
 import { Hono } from 'hono';
 import { bodyLimit } from 'hono/body-limit';
 import { timingSafeEqual } from 'node:crypto';
+import { readFile } from 'node:fs/promises';
 import { z } from 'zod';
 import { Store } from './store.js';
 import { Runner } from './runner.js';
 import { configured, type Config } from './research.js';
 import type { Platform } from './platform.js';
+import type { OwnerInbox } from '../shared/types.js';
 import { VoiceService } from './voice.js';
 import { workspaceRoutes } from './workspace-routes.js';
 const interval = z.number().int().min(60).max(31_536_000).nullable();
+const ownerInboxItem = z.object({
+  id: z.string(),
+  for: z.string(),
+  title: z.string(),
+  body: z.string(),
+  how: z.string(),
+  added: z.string().optional(),
+});
+const ownerInboxFile = z.object({
+  asks: z.array(ownerInboxItem),
+  whenever: z.array(z.string()),
+});
+const emptyOwnerInbox: OwnerInbox = { asks: [], whenever: [] };
 export interface AppOptions {
   store: Store;
   runner: Runner;
@@ -18,6 +33,8 @@ export interface AppOptions {
   ownerToken?: string;
   origin?: string | string[];
   platform?: Platform;
+  /** Path to the owner inbox JSON served at /api/owner-inbox (read per request). */
+  ownerInboxPath?: string;
 }
 export function createApp({
   store,
@@ -26,6 +43,7 @@ export function createApp({
   ownerToken,
   origin,
   platform,
+  ownerInboxPath,
 }: AppOptions) {
   const app = new Hono();
   app.use(
@@ -237,6 +255,19 @@ export function createApp({
       ? c.json({ ok: true })
       : c.json({ error: 'Memory not found.' }, 404),
   );
+  app.get('/api/owner-inbox', async (c) => {
+    if (!ownerInboxPath) return c.json(emptyOwnerInbox);
+    try {
+      const parsed = ownerInboxFile.safeParse(
+        JSON.parse(await readFile(ownerInboxPath, 'utf8')),
+      );
+      return c.json(
+        parsed.success ? (parsed.data as OwnerInbox) : emptyOwnerInbox,
+      );
+    } catch {
+      return c.json(emptyOwnerInbox);
+    }
+  });
   app.onError((error, c) => {
     console.error('API request failed:', error.name);
     return c.json(

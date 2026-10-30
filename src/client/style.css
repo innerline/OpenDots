@@ -836,6 +836,55 @@ h3 {
   font-size: 9px;
   margin-right: auto;
 }
+.inbox-list {
+  display: grid;
+  gap: 16px;
+  max-width: 640px;
+}
+.inbox-card {
+  background: white;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 22px;
+}
+.inbox-card h3 {
+  font-size: 15px;
+  margin: 0 0 10px;
+}
+.inbox-card > p {
+  font-size: 13px;
+  margin: 0 0 16px;
+  white-space: pre-wrap;
+}
+.inbox-card .inbox-how {
+  margin: 0;
+  padding: 12px 14px;
+  background: var(--lavender);
+  border: 1px solid #e0e4f4;
+  border-radius: 8px;
+  color: var(--blue-dark);
+}
+.inbox-whenever {
+  max-width: 640px;
+  margin-top: 35px;
+}
+.inbox-whenever h2 {
+  font-size: 10px;
+  font-weight: 600;
+  color: #a3a3ab;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+  margin: 0 0 12px;
+}
+.inbox-whenever ul {
+  margin: 0;
+  padding-left: 18px;
+}
+.inbox-whenever li {
+  font-size: 12px;
+  color: #999ba5;
+  line-height: 1.9;
+}
 .notice {
   background: #f3eee4;
   padding: 12px 40px;

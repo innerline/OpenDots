@@ -122,3 +122,16 @@ export interface WorkspaceState {
   setup: SetupStatus;
   calls: CallReceipt[];
 }
+export interface OwnerInboxAsk {
+  id: string;
+  /** Routes the ask to one app's inbox (e.g. 'honey' for OpenDots). */
+  for: string;
+  title: string;
+  body: string;
+  how: string;
+  added?: string;
+}
+export interface OwnerInbox {
+  asks: OwnerInboxAsk[];
+  whenever: string[];
+}

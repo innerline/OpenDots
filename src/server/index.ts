@@ -97,6 +97,7 @@ const app = createApp({
   ownerToken,
   origin: resolveAppOrigins(process.env.APP_ORIGIN, process.env.NODE_ENV),
   platform,
+  ownerInboxPath: process.env.OWNER_INBOX_PATH || undefined,
 });
 app.use('*', async (c, next) => {
   c.header('X-Content-Type-Options', 'nosniff');

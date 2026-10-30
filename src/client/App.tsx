@@ -10,6 +10,7 @@ import {
   Clock3,
   Code2,
   Folder,
+  Inbox,
   Menu,
   MessageCircle,
   Monitor,
@@ -27,6 +28,7 @@ import type {
   Conversation,
   Detail,
   Dot,
+  OwnerInbox,
   Result,
   State,
   WorkspaceState,
@@ -42,6 +44,7 @@ import {
 } from './poll-notice';
 import { Mascot } from './Mascot';
 import { Chat } from './Chat';
+import { OwnerInbox as OwnerInboxPanel } from './OwnerInbox';
 import { ThreadList } from './ThreadList';
 import { ResultPane } from './ResultPane';
 import { TaskRow } from './TaskPresentation';
@@ -62,9 +65,9 @@ export function App() {
   const [workspace, setWorkspace] = useState<WorkspaceState>();
   const [selectedDot, setSelectedDot] = useState('');
   const [selectedThread, setSelectedThread] = useState<string>();
-  const [view, rawSetView] = useState<'chat' | 'tasks' | 'memories' | 'space'>(
-    'chat',
-  );
+  const [view, rawSetView] = useState<
+    'chat' | 'tasks' | 'memories' | 'inbox' | 'space'
+  >('chat');
   const dirtyPage = useRef(false);
   const [spaceId, setSpaceId] = useState('');
   const [pageId, setPageId] = useState<string>();
@@ -184,6 +187,25 @@ export function App() {
       clearInterval(timer);
     };
   }, [selectedThread]);
+  const [inbox, setInbox] = useState<OwnerInbox>({
+    asks: [],
+    whenever: [],
+  });
+  useEffect(() => {
+    let active = true;
+    const load = () =>
+      void api<OwnerInbox>('/owner-inbox')
+        .then((data) => {
+          if (active) setInbox(data);
+        })
+        .catch(() => undefined);
+    load();
+    const timer = setInterval(load, 30000);
+    return () => {
+      active = false;
+      clearInterval(timer);
+    };
+  }, []);
   const mutate = async (path: string, method: string, body?: unknown) => {
     setError('');
     try {
@@ -203,6 +225,7 @@ export function App() {
   const thread = workspace?.conversations.find(
     (item) => item.id === selectedThread && item.dotId === dot?.id,
   );
+  const inboxCount = inbox.asks.filter((ask) => ask.for === 'honey').length;
   const configured = !!workspace && workspace.setup.missing.length === 0;
   const setupStep = workspace
     ? dialog?.type === 'settings'
@@ -336,6 +359,9 @@ export function App() {
           }}
         >
           <Folder size={18} />
+        </button>
+        <button aria-label="Open inbox" onClick={() => setView('inbox')}>
+          <Inbox size={18} />
         </button>
         <button aria-label="Open activity" onClick={() => setView('tasks')}>
           <Clock3 size={18} />
@@ -473,6 +499,17 @@ export function App() {
         )}
         <div className="sidebar-bottom">
           <button
+            className={`nav-item ${view === 'inbox' ? 'active' : ''}`}
+            onClick={() => {
+              setView('inbox');
+              setMobile(false);
+            }}
+          >
+            <Inbox size={17} />
+            <span>Inbox</span>
+            {inboxCount > 0 && <small>{inboxCount}</small>}
+          </button>
+          <button
             className={`nav-item ${view === 'tasks' ? 'active' : ''}`}
             onClick={() => {
               setView('tasks');
@@ -541,7 +578,9 @@ export function App() {
                   ? 'Activity'
                   : view === 'space'
                     ? 'Pages'
-                    : 'Memories'}
+                    : view === 'inbox'
+                      ? 'Inbox'
+                      : 'Memories'}
             </strong>
           </div>
           <div className="top-actions">
@@ -775,12 +814,16 @@ export function App() {
                 <h1>
                   {view === 'memories'
                     ? 'Memories'
-                    : 'A little follow-through.'}
+                    : view === 'inbox'
+                      ? 'Inbox'
+                      : 'A little follow-through.'}
                 </h1>
                 <p>
                   {view === 'memories'
                     ? 'Preferences you choose to share with your Dots.'
-                    : 'Scheduled turns run on the server in their original conversation.'}
+                    : view === 'inbox'
+                      ? 'Asks from your team — answer any of them by replying in chat.'
+                      : 'Scheduled turns run on the server in their original conversation.'}
                 </p>
               </div>
               {view === 'memories' && (
@@ -837,6 +880,8 @@ export function App() {
                   </div>
                 )}
               </>
+            ) : view === 'inbox' ? (
+              <OwnerInboxPanel inbox={inbox} />
             ) : (
               <>
                 <label className="search-box">

@@ -26,10 +26,15 @@ services:
       INTELLIGENCE_GATEWAY_WS_URL: "ws://host.docker.internal:51412"
       BROWSER_URL: ""
       DATABASE_PATH: /data/opendots.sqlite
+      # MWP 2026-10-30: Brian's inbox — the kanban ask register, bind-mounted (not baked
+      # into the image) so the team updates it without rebuilds. Read per request at
+      # /api/owner-inbox; directory mount so git checkouts (inode replacement) stay live.
+      OWNER_INBOX_PATH: /inbox/owner-inbox.json
       HOST: 0.0.0.0
       PORT: "4310"
     volumes:
       - opendots-data:/data
+      - /Users/silverhawk/GitHub/MWP/kanban:/inbox:ro
     extra_hosts:
       - "host.docker.internal:host-gateway"
     init: true
