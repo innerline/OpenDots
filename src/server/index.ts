@@ -136,3 +136,18 @@ const shutdown = createShutdown({
 });
 process.on('SIGTERM', shutdown);
 process.on('SIGINT', shutdown);
+// One broken model stream must fail that one reply, never the whole door. A stream the
+// backend closes mid-answer surfaces as an unhandled rejection from inside the runtime's
+// run loop (undici "terminated" / UND_ERR_SOCKET); Node's default for that is death, which
+// took this whole app down twice on 2026-11-02 (crash → container restart → every open
+// chat reads "lost connection"). Logged loudly rather than swallowed — the same bar
+// OpenBot's server holds — and the process keeps serving.
+process.on('unhandledRejection', (reason) => {
+  console.error(
+    JSON.stringify({
+      type: 'unhandled-rejection',
+      message: reason instanceof Error ? reason.message : String(reason),
+      note: 'The server kept running. One dropped reply must not take the door down.',
+    }),
+  );
+});
